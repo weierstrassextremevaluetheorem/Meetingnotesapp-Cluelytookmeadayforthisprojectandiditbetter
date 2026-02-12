@@ -1,6 +1,22 @@
 import { app, globalShortcut, ipcMain } from 'electron'
 import { join } from 'node:path'
-import { config } from 'dotenv'
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/43e14a31-7dfc-48c4-8100-ef5dd33935d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main/index.ts:TOP',message:'Main process starting - before dotenv import',data:{dirname:__dirname,nodeModulesExists:require('fs').existsSync(join(__dirname,'../node_modules')),nodeModulesExists2:require('fs').existsSync(join(__dirname,'../../node_modules')),resourcePath:process.resourcesPath||'N/A'},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+// #endregion
+
+// Safely attempt dotenv import (wrapped for diagnosis)
+let dotenvConfig: ((opts?: any) => void) | null = null
+try {
+  dotenvConfig = require('dotenv').config
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/43e14a31-7dfc-48c4-8100-ef5dd33935d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main/index.ts:DOTENV_OK',message:'dotenv loaded successfully',data:{},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+} catch (err: any) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/43e14a31-7dfc-48c4-8100-ef5dd33935d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main/index.ts:DOTENV_FAIL',message:'dotenv require FAILED',data:{error:err.message,code:err.code,modulePaths:require('module')._nodeModulePaths(__dirname)},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+}
+
 import { createOverlayWindow, toggleOverlay, collapseOverlay, getOverlayWindow, isCollapsed } from './window'
 import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc/handlers'
@@ -10,8 +26,16 @@ import { SessionStore } from './services/SessionStore'
 import { AuditService } from './services/AuditService'
 import { IPC } from './ipc/channels'
 
-// Load .env from project root
-config({ path: join(__dirname, '../../.env') })
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/43e14a31-7dfc-48c4-8100-ef5dd33935d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main/index.ts:IMPORTS_DONE',message:'All imports completed',data:{wsAvailable:(() => { try { require('ws'); return true } catch { return false } })(),sqlJsAvailable:(() => { try { require('sql.js'); return true } catch { return false } })(),uuidAvailable:(() => { try { require('uuid'); return true } catch { return false } })()},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+// #endregion
+
+// Load .env from project root (safely)
+if (dotenvConfig) {
+  dotenvConfig({ path: join(__dirname, '../../.env') })
+} else {
+  console.warn('[Main] dotenv not available - skipping .env loading (expected in production)')
+}
 
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock()
