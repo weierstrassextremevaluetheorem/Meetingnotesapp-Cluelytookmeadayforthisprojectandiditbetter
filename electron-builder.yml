@@ -16,4 +16,9 @@ extraResources:
       - "**/*"
 files:
   - out/**/*
-  - "!node_modules/**/*"
+  - node_modules/**/*
+  - package.json
+  - "!dist{,/**}"
+  - "!dist-debug{,/**}"
+  - "!dist-debug2{,/**}"
+  - "!dist-debug3{,/**}"
