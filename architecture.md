@@ -1,8 +1,9 @@
 # MeetingAssistant -- Architecture Context
 
-> **Purpose**: Windows-only AI meeting assistant. Captures system audio, transcribes in real time via OpenAI Realtime API, generates structured meeting notes via LLM, persists sessions locally.
+> **Purpose**: Windows-only AI meeting assistant. Captures system audio, transcribes in real time, generates structured meeting notes via LLM, persists sessions locally.
 > **UI**: Electron + React transparent floating overlay (Cluely-style), pinned to right edge, collapsible to a pill.
 > **Audio**: C# .NET 8 sidecar using NAudio WasapiLoopbackCapture, communicates with Electron via stdio JSON lines.
+> **Multi-provider**: Transcription via OpenAI Realtime or Deepgram. Notes via any OpenAI-compatible endpoint (OpenAI, Groq, Together, Ollama, etc.) or Anthropic Claude.
 
 ---
 
@@ -13,9 +14,9 @@
 │                     Electron Main Process (Node.js)                 │
 │                                                                     │
 │  ┌────────────────┐   ┌─────────────────────┐   ┌───────────────┐  │
-│  │ AudioBridge    │   │ TranscriptionService │   │ NotesService  │  │
-│  │ Service        │──>│ (ws WebSocket)       │   │ (HTTP POST)   │  │
-│  │ spawns sidecar │   │ OpenAI Realtime API  │   │ OpenAI Chat   │  │
+│  │ AudioBridge    │   │ TranscriptionFactory │   │ NotesService  │  │
+│  │ Service        │──>│ OpenAI RT / Deepgram │   │ OpenAI-compat │  │
+│  │ spawns sidecar │   │ (ws WebSocket)       │   │ / Anthropic   │  │
 │  └───────┬────────┘   └──────────┬──────────┘   └──────┬────────┘  │
 │          │ stdio                  │ events               │           │
 │  ┌───────┴────────┐   ┌──────────┴──────────┐   ┌──────┴────────┐  │
@@ -54,12 +55,34 @@
 | Markdown | react-markdown + remark-gfm | Render notes in-app |
 | State | Zustand | Global app state |
 | Animation | Framer Motion | Expand/collapse transitions |
-| WebSocket | ws (npm) | OpenAI Realtime Transcription |
-| HTTP | Node.js fetch | OpenAI Chat Completions |
-| Database | better-sqlite3 | Local SQLite persistence |
+| WebSocket | ws (npm) | Transcription streaming (OpenAI / Deepgram) |
+| HTTP | Node.js fetch | LLM notes (OpenAI-compat / Anthropic) |
+| Database | sql.js (WASM) | Local SQLite persistence |
 | Audio Capture | NAudio 2.2+ (C#/.NET 8) | WasapiLoopbackCapture |
 | IPC Sidecar | child_process stdio | JSON lines over stdin/stdout |
 | Build | electron-vite + electron-builder | Dev server + packaging |
+
+---
+
+## Supported Providers
+
+### Transcription (real-time)
+
+| Provider | Models | Protocol |
+|----------|--------|----------|
+| **OpenAI Realtime** | gpt-4o-transcribe, gpt-4o-mini-transcribe, whisper-1 | WebSocket (wss://api.openai.com/v1/realtime) |
+| **Deepgram** | nova-3, nova-2, nova, enhanced, base | WebSocket (wss://api.deepgram.com/v1/listen) |
+
+Implementation: `src/main/services/transcription/` -- factory pattern selects the active provider from `SettingsStore.getTranscriptionProvider()`.
+
+### Notes Generation (LLM)
+
+| Provider | Models | Protocol |
+|----------|--------|----------|
+| **OpenAI-Compatible** | Any model at any endpoint that speaks the OpenAI Chat Completions format: OpenAI, Azure OpenAI, Groq, Together AI, Fireworks, Ollama (`localhost:11434`), LM Studio, vLLM | `POST /v1/chat/completions` |
+| **Anthropic Claude** | claude-sonnet-4-20250514, claude-3-5-sonnet, claude-3-5-haiku | `POST /v1/messages` with `x-api-key` |
+
+Implementation: `src/main/services/NotesService.ts` -- branches on `SettingsStore.getLlmProvider()`.
 
 ---
 

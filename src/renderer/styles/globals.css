@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: transparent !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Glass panel - the main overlay container */
+.glass-panel {
+  background: rgba(15, 15, 24, 0.92);
+  -webkit-backdrop-filter: blur(40px) saturate(120%);
+  backdrop-filter: blur(40px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Drag region for frameless window */
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Select dropdown fix for dark theme */
+select option {
+  background-color: #1a1a2e;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Markdown rendering */
+.markdown-body {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.markdown-body h1 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 12px 0 6px;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 4px;
+}
+.markdown-body h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 10px 0 4px;
+  color: rgba(255, 255, 255, 0.95);
+}
+.markdown-body h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.markdown-body p {
+  margin: 4px 0;
+}
+.markdown-body ul, .markdown-body ol {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+.markdown-body li {
+  margin: 2px 0;
+}
+.markdown-body li::marker {
+  color: rgba(255, 255, 255, 0.3);
+}
+.markdown-body code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+.markdown-body pre {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 10px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 6px 0;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.markdown-body strong {
+  color: #fff;
+  font-weight: 600;
+}
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 10px 0;
+}
+.markdown-body a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+.markdown-body blockquote {
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  padding-left: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 6px 0;
+}
+
+/* Shared input field styling */
+.input-field {
+  @apply w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5
+         text-xs text-white/80 outline-none transition-colors;
+}
+.input-field:focus {
+  @apply border-white/25;
+}
+.input-field::placeholder {
+  @apply text-white/20;
+}

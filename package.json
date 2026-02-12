@@ -1,0 +1,43 @@
+{
+  "name": "meeting-assistant",
+  "version": "1.0.0",
+  "description": "AI Meeting Assistant - Transparent overlay for real-time transcription and notes",
+  "author": "Meeting Assistant",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-vite build && electron-builder --win",
+    "build:sidecar": "dotnet publish sidecar/AudioSidecar.csproj -r win-x64 -c Release --self-contained -p:PublishSingleFile=true -o resources/sidecar"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
+    "sql.js": "^1.11.0",
+    "dotenv": "^16.4.7",
+    "framer-motion": "^11.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0",
+    "uuid": "^11.0.5",
+    "ws": "^8.18.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/sql.js": "^1.4.9",
+    "@types/react": "^18.3.14",
+    "@types/react-dom": "^18.3.5",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.13",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}
