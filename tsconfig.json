@@ -5,6 +5,7 @@
     { "path": "./tsconfig.web.json" }
   ],
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "forceConsistentCasingInFileNames": true
   }
 }

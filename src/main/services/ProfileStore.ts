@@ -7,9 +7,15 @@ export interface PromptProfileData {
   transcriptionPrompt: string
   notesPrompt: string
   outputFormat: string
+  llmProviderOverride?: string | null
+  llmModelOverride?: string | null
+  llmEndpointOverride?: string | null
   createdAt: string
   updatedAt: string
 }
+
+const SELECT_COLS =
+  'Id, Name, TranscriptionPrompt, NotesPrompt, OutputFormat, LlmProviderOverride, LlmModelOverride, LlmEndpointOverride, CreatedAt, UpdatedAt'
 
 function rowToData(values: unknown[]): PromptProfileData {
   return {
@@ -18,22 +24,25 @@ function rowToData(values: unknown[]): PromptProfileData {
     transcriptionPrompt: (values[2] as string) || '',
     notesPrompt: values[3] as string,
     outputFormat: values[4] as string,
-    createdAt: values[5] as string,
-    updatedAt: values[6] as string
+    llmProviderOverride: (values[5] as string) || null,
+    llmModelOverride: (values[6] as string) || null,
+    llmEndpointOverride: (values[7] as string) || null,
+    createdAt: values[8] as string,
+    updatedAt: values[9] as string
   }
 }
 
 export class ProfileStore {
   static list(): PromptProfileData[] {
     const db = DatabaseInit.getDb()
-    const result = db.exec('SELECT Id, Name, TranscriptionPrompt, NotesPrompt, OutputFormat, CreatedAt, UpdatedAt FROM PromptProfiles ORDER BY Name')
+    const result = db.exec(`SELECT ${SELECT_COLS} FROM PromptProfiles ORDER BY Name`)
     if (result.length === 0) return []
     return result[0].values.map(rowToData)
   }
 
   static get(id: string): PromptProfileData | null {
     const db = DatabaseInit.getDb()
-    const stmt = db.prepare('SELECT Id, Name, TranscriptionPrompt, NotesPrompt, OutputFormat, CreatedAt, UpdatedAt FROM PromptProfiles WHERE Id = ?')
+    const stmt = db.prepare(`SELECT ${SELECT_COLS} FROM PromptProfiles WHERE Id = ?`)
     stmt.bind([id])
     if (stmt.step()) {
       const values = stmt.get()
@@ -44,20 +53,47 @@ export class ProfileStore {
     return null
   }
 
-  static create(data: { name: string; transcriptionPrompt: string; notesPrompt: string; outputFormat?: string }): PromptProfileData {
+  static create(data: {
+    name: string
+    transcriptionPrompt: string
+    notesPrompt: string
+    outputFormat?: string
+    llmProviderOverride?: string | null
+    llmModelOverride?: string | null
+    llmEndpointOverride?: string | null
+  }): PromptProfileData {
     const db = DatabaseInit.getDb()
     const now = new Date().toISOString()
     const id = uuid()
     db.run(
-      `INSERT INTO PromptProfiles (Id, Name, TranscriptionPrompt, NotesPrompt, OutputFormat, CreatedAt, UpdatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, data.name, data.transcriptionPrompt, data.notesPrompt, data.outputFormat || 'markdown', now, now]
+      `INSERT INTO PromptProfiles (Id, Name, TranscriptionPrompt, NotesPrompt, OutputFormat, LlmProviderOverride, LlmModelOverride, LlmEndpointOverride, CreatedAt, UpdatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        data.name,
+        data.transcriptionPrompt,
+        data.notesPrompt,
+        data.outputFormat || 'markdown',
+        data.llmProviderOverride || null,
+        data.llmModelOverride || null,
+        data.llmEndpointOverride || null,
+        now,
+        now
+      ]
     )
     DatabaseInit.save()
     return ProfileStore.get(id)!
   }
 
-  static update(id: string, data: { name?: string; transcriptionPrompt?: string; notesPrompt?: string; outputFormat?: string }): PromptProfileData | null {
+  static update(id: string, data: {
+    name?: string
+    transcriptionPrompt?: string
+    notesPrompt?: string
+    outputFormat?: string
+    llmProviderOverride?: string | null
+    llmModelOverride?: string | null
+    llmEndpointOverride?: string | null
+  }): PromptProfileData | null {
     const existing = ProfileStore.get(id)
     if (!existing) return null
 
@@ -65,13 +101,17 @@ export class ProfileStore {
     const now = new Date().toISOString()
     db.run(
       `UPDATE PromptProfiles
-       SET Name = ?, TranscriptionPrompt = ?, NotesPrompt = ?, OutputFormat = ?, UpdatedAt = ?
+       SET Name = ?, TranscriptionPrompt = ?, NotesPrompt = ?, OutputFormat = ?,
+           LlmProviderOverride = ?, LlmModelOverride = ?, LlmEndpointOverride = ?, UpdatedAt = ?
        WHERE Id = ?`,
       [
         data.name ?? existing.name,
         data.transcriptionPrompt ?? existing.transcriptionPrompt,
         data.notesPrompt ?? existing.notesPrompt,
         data.outputFormat ?? existing.outputFormat,
+        (data.llmProviderOverride !== undefined ? data.llmProviderOverride : existing.llmProviderOverride) ?? null,
+        (data.llmModelOverride !== undefined ? data.llmModelOverride : existing.llmModelOverride) ?? null,
+        (data.llmEndpointOverride !== undefined ? data.llmEndpointOverride : existing.llmEndpointOverride) ?? null,
         now,
         id
       ]

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppView, PromptProfile, MeetingSession } from '../types'
+import type { AppView, PromptProfile, MeetingSession, TerminologyEntry } from '../types'
 
 interface AppState {
   // View
@@ -38,6 +38,16 @@ interface AppState {
   setSessions: (sessions: MeetingSession[]) => void
   selectedSessionId: string | null
   setSelectedSessionId: (id: string | null) => void
+  sessionSearchQuery: string
+  setSessionSearchQuery: (q: string) => void
+
+  // Terminology
+  terminology: TerminologyEntry[]
+  setTerminology: (terms: TerminologyEntry[]) => void
+
+  // Toast notifications
+  toast: string | null
+  setToast: (msg: string | null) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -83,5 +93,15 @@ export const useAppStore = create<AppState>((set) => ({
   sessions: [],
   setSessions: (sessions) => set({ sessions }),
   selectedSessionId: null,
-  setSelectedSessionId: (id) => set({ selectedSessionId: id })
+  setSelectedSessionId: (id) => set({ selectedSessionId: id }),
+  sessionSearchQuery: '',
+  setSessionSearchQuery: (q) => set({ sessionSearchQuery: q }),
+
+  // Terminology
+  terminology: [],
+  setTerminology: (terms) => set({ terminology: terms }),
+
+  // Toast
+  toast: null,
+  setToast: (msg) => set({ toast: msg })
 }))

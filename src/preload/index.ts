@@ -1,83 +1,51 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-export interface ElectronAPI {
+const api = {
   // Recording
-  startRecording: (profileId: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>
-  stopRecording: () => Promise<{ success: boolean; sessionId?: string; transcript?: string; error?: string }>
-  generateNotes: (sessionId: string) => Promise<{ success: boolean; notes?: string; error?: string }>
-
-  // Profiles
-  listProfiles: () => Promise<Array<{
-    id: string; name: string; transcriptionPrompt: string
-    notesPrompt: string; outputFormat: string; createdAt: string; updatedAt: string
-  }>>
-  getProfile: (id: string) => Promise<{
-    id: string; name: string; transcriptionPrompt: string
-    notesPrompt: string; outputFormat: string; createdAt: string; updatedAt: string
-  } | null>
-  createProfile: (data: {
-    name: string; transcriptionPrompt: string; notesPrompt: string; outputFormat?: string
-  }) => Promise<unknown>
-  updateProfile: (id: string, data: {
-    name?: string; transcriptionPrompt?: string; notesPrompt?: string; outputFormat?: string
-  }) => Promise<unknown>
-  deleteProfile: (id: string) => Promise<boolean>
-
-  // Sessions
-  listSessions: () => Promise<Array<{
-    id: string; profileId: string; profileName: string; startedAt: string
-    endedAt?: string; transcriptText: string; notesMarkdown?: string; status: string
-  }>>
-  getSession: (id: string) => Promise<{
-    id: string; profileId: string; profileName: string; startedAt: string
-    endedAt?: string; transcriptText: string; notesMarkdown?: string; status: string
-  } | null>
-  deleteSession: (id: string) => Promise<boolean>
-
-  // Settings
-  getSettings: () => Promise<Record<string, string>>
-  setSetting: (key: string, value: string) => Promise<boolean>
-  getApiKeyMasked: () => Promise<string>
-  exportSessionMd: (id: string) => Promise<{ success: boolean; filePath?: string; error?: string }>
-
-  // Window
-  toggleWindow: () => void
-  collapseWindow: () => void
-  closeWindow: () => void
-  isCollapsed: () => Promise<boolean>
-
-  // Events (main -> renderer)
-  onTranscriptDelta: (callback: (delta: { itemId: string; text: string; timestamp: number }) => void) => void
-  onTranscriptCompleted: (callback: (data: { itemId: string; text: string; timestamp: number }) => void) => void
-  onNotesReady: (callback: (markdown: string) => void) => void
-  onRecordingStatus: (callback: (status: string) => void) => void
-  onError: (callback: (message: string) => void) => void
-  removeAllListeners: (channel: string) => void
-}
-
-const api: ElectronAPI = {
-  // Recording
-  startRecording: (profileId) => ipcRenderer.invoke('recording:start', profileId),
+  startRecording: (profileId: string) => ipcRenderer.invoke('recording:start', profileId),
   stopRecording: () => ipcRenderer.invoke('recording:stop'),
-  generateNotes: (sessionId) => ipcRenderer.invoke('notes:generate', sessionId),
+  generateNotes: (sessionId: string) => ipcRenderer.invoke('notes:generate', sessionId),
 
   // Profiles
   listProfiles: () => ipcRenderer.invoke('profiles:list'),
-  getProfile: (id) => ipcRenderer.invoke('profiles:get', id),
-  createProfile: (data) => ipcRenderer.invoke('profiles:create', data),
-  updateProfile: (id, data) => ipcRenderer.invoke('profiles:update', id, data),
-  deleteProfile: (id) => ipcRenderer.invoke('profiles:delete', id),
+  getProfile: (id: string) => ipcRenderer.invoke('profiles:get', id),
+  createProfile: (data: {
+    name: string; transcriptionPrompt: string; notesPrompt: string
+    outputFormat?: string; llmProviderOverride?: string | null
+    llmModelOverride?: string | null; llmEndpointOverride?: string | null
+  }) => ipcRenderer.invoke('profiles:create', data),
+  updateProfile: (id: string, data: {
+    name?: string; transcriptionPrompt?: string; notesPrompt?: string
+    outputFormat?: string; llmProviderOverride?: string | null
+    llmModelOverride?: string | null; llmEndpointOverride?: string | null
+  }) => ipcRenderer.invoke('profiles:update', id, data),
+  deleteProfile: (id: string) => ipcRenderer.invoke('profiles:delete', id),
 
   // Sessions
   listSessions: () => ipcRenderer.invoke('sessions:list'),
-  getSession: (id) => ipcRenderer.invoke('sessions:get', id),
-  deleteSession: (id) => ipcRenderer.invoke('sessions:delete', id),
-  exportSessionMd: (id) => ipcRenderer.invoke('sessions:exportMd', id),
+  getSession: (id: string) => ipcRenderer.invoke('sessions:get', id),
+  searchSessions: (query: string) => ipcRenderer.invoke('sessions:search', query),
+  deleteSession: (id: string) => ipcRenderer.invoke('sessions:delete', id),
+  exportSessionMd: (id: string) => ipcRenderer.invoke('sessions:exportMd', id),
+
+  // Session Feedback
+  setSessionFeedback: (id: string, rating: number, text?: string) =>
+    ipcRenderer.invoke('sessions:feedback', id, rating, text),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:getAll'),
-  setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value),
+  setSetting: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value),
   getApiKeyMasked: () => ipcRenderer.invoke('settings:getApiKey'),
+
+  // Terminology
+  listTerminology: () => ipcRenderer.invoke('terminology:list'),
+  addTerminology: (term: string, definition?: string) =>
+    ipcRenderer.invoke('terminology:add', term, definition),
+  deleteTerminology: (id: string) => ipcRenderer.invoke('terminology:delete', id),
+
+  // Integrations
+  exportToSlack: (sessionId: string) => ipcRenderer.invoke('integrations:slack:export', sessionId),
+  exportToNotion: (sessionId: string) => ipcRenderer.invoke('integrations:notion:export', sessionId),
 
   // Window
   toggleWindow: () => ipcRenderer.send('window:toggle'),
@@ -85,13 +53,19 @@ const api: ElectronAPI = {
   closeWindow: () => ipcRenderer.send('window:close'),
   isCollapsed: () => ipcRenderer.invoke('window:isCollapsed'),
 
-  // Events
-  onTranscriptDelta: (cb) => ipcRenderer.on('transcript:delta', (_e, delta) => cb(delta)),
-  onTranscriptCompleted: (cb) => ipcRenderer.on('transcript:completed', (_e, data) => cb(data)),
-  onNotesReady: (cb) => ipcRenderer.on('notes:ready', (_e, md) => cb(md)),
-  onRecordingStatus: (cb) => ipcRenderer.on('recording:status', (_e, status) => cb(status)),
-  onError: (cb) => ipcRenderer.on('app:error', (_e, msg) => cb(msg)),
-  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)
+  // Events (main -> renderer)
+  onTranscriptDelta: (cb: (delta: { itemId: string; text: string; timestamp: number }) => void) =>
+    ipcRenderer.on('transcript:delta', (_e, delta) => cb(delta)),
+  onTranscriptCompleted: (cb: (data: { itemId: string; text: string; timestamp: number }) => void) =>
+    ipcRenderer.on('transcript:completed', (_e, data) => cb(data)),
+  onNotesReady: (cb: (markdown: string) => void) =>
+    ipcRenderer.on('notes:ready', (_e, md) => cb(md)),
+  onRecordingStatus: (cb: (status: string) => void) =>
+    ipcRenderer.on('recording:status', (_e, status) => cb(status)),
+  onError: (cb: (message: string) => void) =>
+    ipcRenderer.on('app:error', (_e, msg) => cb(msg)),
+  removeAllListeners: (channel: string) =>
+    ipcRenderer.removeAllListeners(channel)
 }
 
 contextBridge.exposeInMainWorld('api', api)

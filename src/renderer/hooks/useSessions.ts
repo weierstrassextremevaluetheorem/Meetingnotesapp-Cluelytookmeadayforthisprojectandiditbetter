@@ -18,6 +18,20 @@ export function useSessions() {
     }
   }, [setSessions])
 
+  const searchSessions = useCallback(async (query: string) => {
+    if (!window.api) return
+    try {
+      if (query.trim()) {
+        const results = await window.api.searchSessions(query.trim())
+        setSessions(results as MeetingSession[])
+      } else {
+        await loadSessions()
+      }
+    } catch (err) {
+      console.error('Failed to search sessions:', err)
+    }
+  }, [setSessions, loadSessions])
+
   const deleteSession = useCallback(async (id: string) => {
     await window.api.deleteSession(id)
     if (selectedSessionId === id) {
@@ -40,6 +54,7 @@ export function useSessions() {
     selectedSessionId,
     setSelectedSessionId,
     loadSessions,
+    searchSessions,
     deleteSession,
     exportSession
   }

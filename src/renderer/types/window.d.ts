@@ -1,4 +1,4 @@
-import type { MeetingSession, PromptProfile, TranscriptDelta } from './index'
+import type { MeetingSession, PromptProfile, TranscriptDelta, TerminologyEntry } from './index'
 
 export {}
 
@@ -27,6 +27,12 @@ export interface ExportSessionResult {
   error?: string
 }
 
+export interface IntegrationResult {
+  success: boolean
+  error?: string
+  url?: string
+}
+
 interface ElectronAPI {
   // Recording
   startRecording: (profileId: string) => Promise<RecordingStartResult>
@@ -41,25 +47,44 @@ interface ElectronAPI {
     transcriptionPrompt: string
     notesPrompt: string
     outputFormat?: string
+    llmProviderOverride?: string | null
+    llmModelOverride?: string | null
+    llmEndpointOverride?: string | null
   }) => Promise<unknown>
   updateProfile: (id: string, data: {
     name?: string
     transcriptionPrompt?: string
     notesPrompt?: string
     outputFormat?: string
+    llmProviderOverride?: string | null
+    llmModelOverride?: string | null
+    llmEndpointOverride?: string | null
   }) => Promise<unknown>
   deleteProfile: (id: string) => Promise<boolean>
 
   // Sessions
   listSessions: () => Promise<MeetingSession[]>
   getSession: (id: string) => Promise<MeetingSession | null>
+  searchSessions: (query: string) => Promise<MeetingSession[]>
   deleteSession: (id: string) => Promise<boolean>
+  exportSessionMd: (id: string) => Promise<ExportSessionResult>
+
+  // Session Feedback
+  setSessionFeedback: (id: string, rating: number, text?: string) => Promise<boolean>
 
   // Settings
   getSettings: () => Promise<Record<string, string>>
   setSetting: (key: string, value: string) => Promise<boolean>
   getApiKeyMasked: () => Promise<string>
-  exportSessionMd: (id: string) => Promise<ExportSessionResult>
+
+  // Terminology
+  listTerminology: () => Promise<TerminologyEntry[]>
+  addTerminology: (term: string, definition?: string) => Promise<TerminologyEntry | null>
+  deleteTerminology: (id: string) => Promise<boolean>
+
+  // Integrations
+  exportToSlack: (sessionId: string) => Promise<IntegrationResult>
+  exportToNotion: (sessionId: string) => Promise<IntegrationResult>
 
   // Window
   toggleWindow: () => void

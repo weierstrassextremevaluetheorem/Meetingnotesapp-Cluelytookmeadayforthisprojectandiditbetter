@@ -5,6 +5,9 @@ import { createOverlayWindow, toggleOverlay, collapseOverlay, getOverlayWindow, 
 import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc/handlers'
 import { DatabaseInit } from './services/DatabaseInit'
+import { SettingsStore } from './services/SettingsStore'
+import { SessionStore } from './services/SessionStore'
+import { AuditService } from './services/AuditService'
 import { IPC } from './ipc/channels'
 
 // Load .env from project root
@@ -33,6 +36,23 @@ app.whenReady().then(async () => {
     console.error('[Main] Database init failed:', err)
   }
 
+  // Run data retention policy on startup
+  try {
+    const retentionDays = SettingsStore.get('retention_days')
+    if (retentionDays) {
+      const days = parseInt(retentionDays, 10)
+      if (days > 0) {
+        const purged = SessionStore.purgeOlderThan(days)
+        if (purged > 0) {
+          console.log(`[Main] Purged ${purged} session(s) older than ${days} days.`)
+          AuditService.log('retention:purge', 'system', undefined, `Purged ${purged} sessions older than ${days} days`)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Main] Retention purge failed:', err)
+  }
+
   // Create overlay window
   createOverlayWindow()
 
@@ -58,6 +78,7 @@ app.whenReady().then(async () => {
   // Query collapsed state
   ipcMain.handle('window:isCollapsed', () => isCollapsed())
 
+  AuditService.log('app:start', 'system')
   console.log('[Main] Meeting Assistant ready.')
 })
 

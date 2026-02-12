@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '../stores/appStore'
+import type { TerminologyEntry } from '../types'
 
 // ── Provider constants (mirrored from backend) ──────────────
 
@@ -30,6 +31,7 @@ const DEFAULT_ENDPOINTS: Record<string, string> = {
 
 export function SettingsView() {
   const setView = useAppStore((s) => s.setView)
+  const setToast = useAppStore((s) => s.setToast)
 
   // Provider selections
   const [transcriptionProvider, setTranscriptionProvider] = useState('openai-realtime')
@@ -50,6 +52,21 @@ export function SettingsView() {
   const [llmModel, setLlmModel] = useState('gpt-4o')
   const [llmEndpoint, setLlmEndpoint] = useState(DEFAULT_ENDPOINTS['openai-compatible'])
 
+  // Integrations
+  const [slackWebhook, setSlackWebhook] = useState('')
+  const [slackWebhookMasked, setSlackWebhookMasked] = useState('')
+  const [notionApiKey, setNotionApiKey] = useState('')
+  const [notionApiKeyMasked, setNotionApiKeyMasked] = useState('')
+  const [notionDbId, setNotionDbId] = useState('')
+
+  // Retention
+  const [retentionDays, setRetentionDays] = useState('')
+
+  // Terminology
+  const [terminology, setTerminology] = useState<TerminologyEntry[]>([])
+  const [newTerm, setNewTerm] = useState('')
+  const [newDef, setNewDef] = useState('')
+
   const [saved, setSaved] = useState(false)
 
   // ── Load ────────────────────────────────────────────────────
@@ -63,13 +80,20 @@ export function SettingsView() {
     setTranscriptionModel(s.transcription_model || 'gpt-4o-transcribe')
     setLlmModel(s.llm_model || 'gpt-4o')
     setLlmEndpoint(s.llm_endpoint || DEFAULT_ENDPOINTS[s.llm_provider || 'openai-compatible'])
+    setRetentionDays(s.retention_days || '')
+    setNotionDbId(s.notion_database_id || '')
 
-    // Mask saved keys
     const mask = (k?: string) => k ? `${k.slice(0, 6)}...${k.slice(-4)}` : ''
     setOpenaiKeyMasked(mask(s.openai_api_key))
     setDeepgramKeyMasked(mask(s.deepgram_api_key))
     setAnthropicKeyMasked(mask(s.anthropic_api_key))
     setLlmKeyMasked(mask(s.llm_api_key))
+    setSlackWebhookMasked(s.slack_webhook_url ? `...${s.slack_webhook_url.slice(-20)}` : '')
+    setNotionApiKeyMasked(mask(s.notion_api_key))
+
+    // Load terminology
+    const terms = await window.api.listTerminology()
+    setTerminology(terms)
   }, [])
 
   useEffect(() => { loadSettings() }, [loadSettings])
@@ -81,8 +105,7 @@ export function SettingsView() {
   }, [llmProvider])
 
   useEffect(() => {
-    const p = transcriptionProvider
-    setTranscriptionModel(p === 'deepgram' ? 'nova-3' : 'gpt-4o-transcribe')
+    setTranscriptionModel(transcriptionProvider === 'deepgram' ? 'nova-3' : 'gpt-4o-transcribe')
   }, [transcriptionProvider])
 
   // ── Save ────────────────────────────────────────────────────
@@ -101,11 +124,33 @@ export function SettingsView() {
     if (deepgramKey.trim()) await set('deepgram_api_key', deepgramKey.trim())
     if (anthropicKey.trim()) await set('anthropic_api_key', anthropicKey.trim())
     if (llmKey.trim()) await set('llm_api_key', llmKey.trim())
+    if (slackWebhook.trim()) await set('slack_webhook_url', slackWebhook.trim())
+    if (notionApiKey.trim()) await set('notion_api_key', notionApiKey.trim())
+    if (notionDbId.trim()) await set('notion_database_id', notionDbId.trim())
+    if (retentionDays.trim()) await set('retention_days', retentionDays.trim())
 
     setSaved(true)
     setOpenaiKey(''); setDeepgramKey(''); setAnthropicKey(''); setLlmKey('')
+    setSlackWebhook(''); setNotionApiKey('')
     await loadSettings()
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  // ── Terminology handlers ────────────────────────────────────
+
+  const handleAddTerm = async () => {
+    if (!newTerm.trim()) return
+    const result = await window.api.addTerminology(newTerm, newDef || undefined)
+    if (result) {
+      setTerminology([...terminology, result])
+      setNewTerm('')
+      setNewDef('')
+    }
+  }
+
+  const handleDeleteTerm = async (id: string) => {
+    await window.api.deleteTerminology(id)
+    setTerminology(terminology.filter((t) => t.id !== id))
   }
 
   // ── Helpers ─────────────────────────────────────────────────
@@ -113,7 +158,7 @@ export function SettingsView() {
   const showOpenAiKey = transcriptionProvider === 'openai-realtime' || llmProvider === 'openai-compatible'
   const showDeepgramKey = transcriptionProvider === 'deepgram'
   const showAnthropicKey = llmProvider === 'anthropic'
-  const showLlmKey = llmProvider === 'openai-compatible' // separate LLM key for non-OpenAI compatible endpoints
+  const showLlmKey = llmProvider === 'openai-compatible'
 
   const transcriptionModels =
     transcriptionProvider === 'deepgram' ? DEEPGRAM_MODELS : OPENAI_TRANSCRIPTION_MODELS
@@ -163,13 +208,7 @@ export function SettingsView() {
           )}
 
           {showLlmKey && (
-            <KeyField
-              label="LLM API Key (if different from OpenAI key)"
-              masked={llmKeyMasked}
-              value={llmKey}
-              onChange={setLlmKey}
-              placeholder="Leave blank to reuse OpenAI key"
-            />
+            <KeyField label="LLM API Key (if different from OpenAI key)" masked={llmKeyMasked} value={llmKey} onChange={setLlmKey} placeholder="Leave blank to reuse OpenAI key" />
           )}
 
           {llmProvider === 'openai-compatible' && (
@@ -179,6 +218,59 @@ export function SettingsView() {
               provider that supports the OpenAI chat completions format.
             </p>
           )}
+        </Section>
+
+        {/* ── INTEGRATIONS ─────────────────────────────────── */}
+        <Section title="Integrations">
+          <KeyField label="Slack Webhook URL" masked={slackWebhookMasked} value={slackWebhook} onChange={setSlackWebhook} placeholder="https://hooks.slack.com/services/..." />
+
+          <div className="border-t border-white/5 pt-2 mt-2" />
+
+          <KeyField label="Notion API Key" masked={notionApiKeyMasked} value={notionApiKey} onChange={setNotionApiKey} placeholder="ntn_..." />
+
+          <Label>Notion Database ID</Label>
+          <input value={notionDbId} onChange={(e) => setNotionDbId(e.target.value)} placeholder="Database ID from Notion URL" className="input-field font-mono" aria-label="Notion database ID" />
+
+          <p className="text-[10px] text-white/20 leading-relaxed mt-1">
+            Create a Notion integration at notion.so/my-integrations, share a database with it,
+            and paste the database ID. The database should have Name (title) and Date (date) properties.
+          </p>
+        </Section>
+
+        {/* ── TERMINOLOGY ──────────────────────────────────── */}
+        <Section title="Terminology / Glossary">
+          <p className="text-[10px] text-white/30 leading-relaxed">
+            Add product names, people, jargon, or abbreviations to improve transcription accuracy.
+          </p>
+
+          <div className="flex gap-1.5 mt-1">
+            <input value={newTerm} onChange={(e) => setNewTerm(e.target.value)} placeholder="Term" className="input-field flex-1" aria-label="New term" />
+            <input value={newDef} onChange={(e) => setNewDef(e.target.value)} placeholder="Definition (optional)" className="input-field flex-1" aria-label="Definition" />
+            <button onClick={handleAddTerm} disabled={!newTerm.trim()} className="px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-400 text-[10px] hover:bg-emerald-500/30 transition-colors disabled:opacity-40">
+              Add
+            </button>
+          </div>
+
+          {terminology.length > 0 && (
+            <div className="mt-1.5 space-y-0.5 max-h-28 overflow-y-auto">
+              {terminology.map((t) => (
+                <div key={t.id} className="flex items-center justify-between px-1.5 py-0.5 rounded bg-white/3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-white/70 font-medium">{t.term}</span>
+                    {t.definition && <span className="text-[9px] text-white/30">{t.definition}</span>}
+                  </div>
+                  <button onClick={() => handleDeleteTerm(t.id)} className="text-[9px] text-red-400/50 hover:text-red-400">x</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+
+        {/* ── DATA RETENTION ───────────────────────────────── */}
+        <Section title="Data Retention">
+          <Label>Auto-delete sessions older than (days)</Label>
+          <input value={retentionDays} onChange={(e) => setRetentionDays(e.target.value)} placeholder="Leave blank to keep forever" type="number" min="1" className="input-field" aria-label="Retention days" />
+          <p className="text-[10px] text-white/20 leading-relaxed">Sessions older than this will be automatically deleted on app startup.</p>
         </Section>
 
         {/* Save */}

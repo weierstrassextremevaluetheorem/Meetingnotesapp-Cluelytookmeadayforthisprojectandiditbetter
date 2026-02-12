@@ -3,6 +3,12 @@ import { useProfiles } from '../hooks/useProfiles'
 import { useAppStore } from '../stores/appStore'
 import type { PromptProfile } from '../types'
 
+const LLM_PROVIDERS = [
+  { id: '', label: 'Use global default' },
+  { id: 'openai-compatible', label: 'OpenAI-Compatible' },
+  { id: 'anthropic', label: 'Anthropic Claude' }
+]
+
 export function ProfileEditor() {
   const { profiles, createProfile, updateProfile, deleteProfile } = useProfiles()
   const setView = useAppStore((s) => s.setView)
@@ -12,6 +18,9 @@ export function ProfileEditor() {
   const [name, setName] = useState('')
   const [transcriptionPrompt, setTranscriptionPrompt] = useState('')
   const [notesPrompt, setNotesPrompt] = useState('')
+  const [llmProviderOverride, setLlmProviderOverride] = useState('')
+  const [llmModelOverride, setLlmModelOverride] = useState('')
+  const [llmEndpointOverride, setLlmEndpointOverride] = useState('')
 
   const startEdit = (profile: PromptProfile) => {
     setEditingProfile(profile)
@@ -19,6 +28,9 @@ export function ProfileEditor() {
     setName(profile.name)
     setTranscriptionPrompt(profile.transcriptionPrompt)
     setNotesPrompt(profile.notesPrompt)
+    setLlmProviderOverride(profile.llmProviderOverride || '')
+    setLlmModelOverride(profile.llmModelOverride || '')
+    setLlmEndpointOverride(profile.llmEndpointOverride || '')
   }
 
   const startCreate = () => {
@@ -27,15 +39,27 @@ export function ProfileEditor() {
     setName('')
     setTranscriptionPrompt('')
     setNotesPrompt('')
+    setLlmProviderOverride('')
+    setLlmModelOverride('')
+    setLlmEndpointOverride('')
   }
 
   const handleSave = async () => {
     if (!name.trim() || !notesPrompt.trim()) return
 
+    const data = {
+      name,
+      transcriptionPrompt,
+      notesPrompt,
+      llmProviderOverride: llmProviderOverride || null,
+      llmModelOverride: llmModelOverride || null,
+      llmEndpointOverride: llmEndpointOverride || null
+    }
+
     if (isCreating) {
-      await createProfile({ name, transcriptionPrompt, notesPrompt })
+      await createProfile(data)
     } else if (editingProfile) {
-      await updateProfile(editingProfile.id, { name, transcriptionPrompt, notesPrompt })
+      await updateProfile(editingProfile.id, data)
     }
 
     setEditingProfile(null)
@@ -78,7 +102,14 @@ export function ProfileEditor() {
               ${editingProfile?.id === p.id ? 'bg-white/5' : ''}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs text-white/80 font-medium">{p.name}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-white/80 font-medium">{p.name}</span>
+                {p.llmModelOverride && (
+                  <span className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400/60">
+                    {p.llmModelOverride}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={(e) => { e.stopPropagation(); handleDelete(p.id) }}
                 className="text-[10px] text-red-400/50 hover:text-red-400 transition-colors"
@@ -95,7 +126,7 @@ export function ProfileEditor() {
 
       {/* Edit form */}
       {(isCreating || editingProfile) && (
-        <div className="border-t border-white/5 px-3 py-2 space-y-2 bg-white/2">
+        <div className="border-t border-white/5 px-3 py-2 space-y-2 bg-white/2 max-h-[50%] overflow-y-auto">
           <span className="text-[11px] font-medium text-white/60">
             {isCreating ? 'New Profile' : 'Edit Profile'}
           </span>
@@ -104,9 +135,7 @@ export function ProfileEditor() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Profile name"
-            className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1
-                       text-xs text-white/80 outline-none focus:border-white/20
-                       placeholder:text-white/20"
+            className="input-field"
           />
 
           <div>
@@ -117,9 +146,7 @@ export function ProfileEditor() {
               value={transcriptionPrompt}
               onChange={(e) => setTranscriptionPrompt(e.target.value)}
               placeholder="Optional keyword hints..."
-              className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1
-                         text-xs text-white/80 outline-none focus:border-white/20
-                         placeholder:text-white/20"
+              className="input-field"
             />
           </div>
 
@@ -132,11 +159,48 @@ export function ProfileEditor() {
               onChange={(e) => setNotesPrompt(e.target.value)}
               placeholder="Instructions for generating meeting notes..."
               rows={4}
-              className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1
-                         text-xs text-white/80 outline-none focus:border-white/20
-                         placeholder:text-white/20 resize-none"
+              className="input-field resize-none"
             />
           </div>
+
+          {/* Per-profile LLM overrides */}
+          <details className="group">
+            <summary className="text-[10px] text-white/40 cursor-pointer hover:text-white/60 transition-colors select-none">
+              LLM Override (optional)
+            </summary>
+            <div className="mt-1.5 space-y-1.5 pl-1">
+              <div>
+                <label className="text-[9px] text-white/30 block">Provider</label>
+                <select
+                  value={llmProviderOverride}
+                  onChange={(e) => setLlmProviderOverride(e.target.value)}
+                  className="input-field appearance-none"
+                >
+                  {LLM_PROVIDERS.map((p) => (
+                    <option key={p.id} value={p.id} className="bg-gray-900">{p.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] text-white/30 block">Model</label>
+                <input
+                  value={llmModelOverride}
+                  onChange={(e) => setLlmModelOverride(e.target.value)}
+                  placeholder="Leave blank for global default"
+                  className="input-field font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] text-white/30 block">Endpoint</label>
+                <input
+                  value={llmEndpointOverride}
+                  onChange={(e) => setLlmEndpointOverride(e.target.value)}
+                  placeholder="Leave blank for global default"
+                  className="input-field font-mono"
+                />
+              </div>
+            </div>
+          </details>
 
           <div className="flex gap-2">
             <button

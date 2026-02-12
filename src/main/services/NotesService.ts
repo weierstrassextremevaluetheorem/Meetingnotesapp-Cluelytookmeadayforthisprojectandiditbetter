@@ -1,20 +1,49 @@
 import { SettingsStore, type LlmProvider } from './SettingsStore'
+import { TerminologyStore } from './TerminologyStore'
+
+export interface NotesConfig {
+  providerOverride?: string | null
+  modelOverride?: string | null
+  endpointOverride?: string | null
+}
 
 /**
  * Generates meeting notes by sending the transcript to an LLM.
  *
- * Supported providers:
- *  - openai-compatible: Any endpoint that speaks the OpenAI Chat Completions
- *    format (OpenAI, Azure OpenAI, Groq, Together AI, Fireworks, Ollama,
- *    LM Studio, vLLM, etc.)
+ * Supports per-profile LLM overrides and terminology injection.
+ *
+ * Providers:
+ *  - openai-compatible: Any endpoint speaking OpenAI Chat Completions
  *  - anthropic: Anthropic Messages API (Claude)
  */
 export class NotesService {
-  async generateNotes(transcript: string, notesPrompt: string): Promise<string> {
-    const provider = SettingsStore.getLlmProvider()
-    const apiKey = SettingsStore.getLlmApiKey()
-    const model = SettingsStore.getLlmModel()
-    const endpoint = SettingsStore.getLlmEndpoint()
+  async generateNotes(
+    transcript: string,
+    notesPrompt: string,
+    config?: NotesConfig
+  ): Promise<string> {
+    const provider = (config?.providerOverride as LlmProvider) || SettingsStore.getLlmProvider()
+    const model = config?.modelOverride || SettingsStore.getLlmModel()
+
+    // Resolve endpoint based on the *effective* provider (after overrides),
+    // not the global one, to avoid sending Anthropic requests to OpenAI URLs.
+    let endpoint: string
+    if (config?.endpointOverride) {
+      endpoint = config.endpointOverride
+    } else {
+      // Use the effective provider to pick the correct default endpoint
+      endpoint = provider === 'anthropic'
+        ? (SettingsStore.get('llm_endpoint') || 'https://api.anthropic.com/v1/messages')
+        : (SettingsStore.get('llm_endpoint') || process.env.LLM_ENDPOINT || 'https://api.openai.com/v1/chat/completions')
+    }
+
+    // Resolve API key based on effective provider
+    let apiKey: string
+    if (provider === 'anthropic') {
+      apiKey = SettingsStore.get('anthropic_api_key') || process.env.ANTHROPIC_API_KEY || ''
+    } else {
+      apiKey = SettingsStore.getLlmApiKey()
+    }
 
     if (!apiKey) {
       throw new Error('LLM API key not set. Go to Settings to configure it.')
@@ -23,14 +52,21 @@ export class NotesService {
       throw new Error('Transcript is empty')
     }
 
+    // Inject terminology hints into system prompt
+    const terminology = TerminologyStore.getKeywordHints()
+    let enrichedPrompt = notesPrompt
+    if (terminology) {
+      enrichedPrompt += `\n\nKey terminology and names to recognize: ${terminology}`
+    }
+
     console.log(`[Notes] provider=${provider}  model=${model}  endpoint=${endpoint}`)
 
     switch (provider) {
       case 'anthropic':
-        return this.callAnthropic(apiKey, model, endpoint, notesPrompt, transcript)
+        return this.callAnthropic(apiKey, model, endpoint, enrichedPrompt, transcript)
       case 'openai-compatible':
       default:
-        return this.callOpenAICompatible(apiKey, model, endpoint, notesPrompt, transcript)
+        return this.callOpenAICompatible(apiKey, model, endpoint, enrichedPrompt, transcript)
     }
   }
 

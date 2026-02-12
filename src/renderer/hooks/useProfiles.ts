@@ -26,6 +26,9 @@ export function useProfiles() {
     name: string
     transcriptionPrompt: string
     notesPrompt: string
+    llmProviderOverride?: string | null
+    llmModelOverride?: string | null
+    llmEndpointOverride?: string | null
   }) => {
     await window.api.createProfile(data)
     await loadProfiles()

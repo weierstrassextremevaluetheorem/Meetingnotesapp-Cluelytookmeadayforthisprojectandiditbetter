@@ -5,22 +5,39 @@ export function ExportBar() {
   const transcript = useAppStore((s) => s.transcript)
   const currentSessionId = useAppStore((s) => s.currentSessionId)
   const setView = useAppStore((s) => s.setView)
+  const setToast = useAppStore((s) => s.setToast)
 
   const handleCopyNotes = async () => {
     if (notesMarkdown) {
       await navigator.clipboard.writeText(notesMarkdown)
+      setToast('Notes copied!')
     }
   }
 
   const handleCopyTranscript = async () => {
     if (transcript) {
       await navigator.clipboard.writeText(transcript)
+      setToast('Transcript copied!')
     }
   }
 
   const handleSaveMd = async () => {
     if (currentSessionId) {
       await window.api.exportSessionMd(currentSessionId)
+    }
+  }
+
+  const handleSlack = async () => {
+    if (currentSessionId) {
+      const result = await window.api.exportToSlack(currentSessionId)
+      setToast(result.success ? 'Sent to Slack!' : (result.error || 'Slack export failed'))
+    }
+  }
+
+  const handleNotion = async () => {
+    if (currentSessionId) {
+      const result = await window.api.exportToNotion(currentSessionId)
+      setToast(result.success ? 'Created in Notion!' : (result.error || 'Notion export failed'))
     }
   }
 
@@ -36,9 +53,17 @@ export function ExportBar() {
             Copy Notes
           </ExportButton>
           {currentSessionId && (
-            <ExportButton onClick={handleSaveMd} title="Save notes as .md file">
-              Save .md
-            </ExportButton>
+            <>
+              <ExportButton onClick={handleSaveMd} title="Save notes as .md file">
+                Save .md
+              </ExportButton>
+              <ExportButton onClick={handleSlack} title="Send to Slack">
+                Slack
+              </ExportButton>
+              <ExportButton onClick={handleNotion} title="Create Notion page">
+                Notion
+              </ExportButton>
+            </>
           )}
         </>
       )}
