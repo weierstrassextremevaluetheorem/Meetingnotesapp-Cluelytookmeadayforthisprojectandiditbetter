@@ -3,7 +3,7 @@
 > **Purpose**: Windows-only AI meeting assistant. Captures system audio, transcribes in real time, generates structured meeting notes via LLM, persists sessions locally. One-click export to Slack and Notion.
 > **UI**: Electron + React transparent floating overlay (Cluely-style), pinned to right edge, collapsible to a pill.
 > **Audio**: C# .NET 8 sidecar using NAudio WasapiLoopbackCapture, communicates with Electron via stdio JSON lines.
-> **Multi-provider**: Transcription via OpenAI Realtime or Deepgram. Notes via any OpenAI-compatible endpoint (OpenAI, Groq, Together, Ollama, etc.) or Anthropic Claude. Per-profile LLM overrides supported.
+> **Multi-provider**: Transcription via OpenAI Realtime or Deepgram. Notes via OpenAI-compatible providers (OpenAI, OpenRouter, Groq, Together, Fireworks, Ollama, Kimi, Gemini, GLM, DeepSeek, Mistral, Perplexity, xAI, etc.) or Anthropic Claude. Per-profile LLM overrides supported.
 
 ---
 
@@ -156,7 +156,7 @@ Implementation: `src/main/services/transcription/` -- factory pattern selects th
 
 | Provider | Models | Protocol |
 |----------|--------|----------|
-| **OpenAI-Compatible** | Any model at any endpoint that speaks the OpenAI Chat Completions format: OpenAI, Azure OpenAI, Groq, Together AI, Fireworks, Ollama (`localhost:11434`), LM Studio, vLLM | `POST /v1/chat/completions` |
+| **OpenAI-Compatible** | Any model at any endpoint that speaks the OpenAI Chat Completions format: OpenAI, OpenRouter, Groq, Together AI, Fireworks, Ollama (`localhost:11434`), Kimi, Gemini, GLM, DeepSeek, Mistral, Perplexity, xAI, LM Studio, vLLM | `POST /v1/chat/completions` |
 | **Anthropic Claude** | claude-sonnet-4-20250514, claude-3-5-sonnet, claude-3-5-haiku | `POST /v1/messages` with `x-api-key` |
 
 Implementation: `src/main/services/NotesService.ts` -- branches on effective provider (global or per-profile override).

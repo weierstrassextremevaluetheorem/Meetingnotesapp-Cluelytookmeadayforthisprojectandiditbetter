@@ -5,7 +5,19 @@ import type { PromptProfile } from '../types'
 
 const LLM_PROVIDERS = [
   { id: '', label: 'Use global default' },
-  { id: 'openai-compatible', label: 'OpenAI-Compatible' },
+  { id: 'openai-compatible', label: 'OpenAI / Compatible' },
+  { id: 'openrouter', label: 'OpenRouter' },
+  { id: 'groq', label: 'Groq' },
+  { id: 'together', label: 'Together AI' },
+  { id: 'fireworks', label: 'Fireworks AI' },
+  { id: 'ollama', label: 'Ollama (local)' },
+  { id: 'kimi', label: 'Kimi (Moonshot AI)' },
+  { id: 'gemini', label: 'Google Gemini' },
+  { id: 'glm', label: 'GLM (Zhipu AI)' },
+  { id: 'deepseek', label: 'DeepSeek' },
+  { id: 'mistral', label: 'Mistral AI' },
+  { id: 'perplexity', label: 'Perplexity' },
+  { id: 'xai', label: 'xAI (Grok)' },
   { id: 'anthropic', label: 'Anthropic Claude' }
 ]
 

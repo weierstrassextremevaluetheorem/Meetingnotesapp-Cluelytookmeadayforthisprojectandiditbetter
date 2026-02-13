@@ -7,6 +7,7 @@ A Windows-only AI meeting assistant that runs as a transparent floating overlay.
 - **Real-time transcription** of system/desktop audio (speakers, meetings, calls)
 - **Live transcript view** that updates as people speak
 - **Automatic meeting notes** generated when you stop recording (Markdown)
+- **Multi-provider notes generation** (OpenAI-compatible, OpenRouter, Groq, Together, Fireworks, Ollama, Kimi, Gemini, GLM, DeepSeek, Mistral, Perplexity, xAI, Anthropic)
 - **Prompt Profiles** to customize notes output per meeting type
 - **Session history** with export to `.md` files
 - **Transparent floating overlay** (Cluely-style) pinned to the right edge of your screen
@@ -19,7 +20,7 @@ A Windows-only AI meeting assistant that runs as a transparent floating overlay.
 Electron (React UI)  <--IPC-->  Electron Main Process  <--stdio-->  C# Sidecar (NAudio)
                                       |
                                       |-- WebSocket --> OpenAI Realtime Transcription API
-                                      |-- HTTP POST --> OpenAI Chat Completions API
+                                      |-- HTTP POST --> Selected LLM provider API
                                       |-- SQLite ----> Local session/profile storage
 ```
 
@@ -28,7 +29,8 @@ Electron (React UI)  <--IPC-->  Electron Main Process  <--stdio-->  C# Sidecar (
 - **Windows 10+**
 - **Node.js 20+** (LTS)
 - **.NET 8 SDK** (for building the audio sidecar)
-- **OpenAI API key** with access to Realtime API and Chat Completions
+- **OpenAI API key** (required for OpenAI Realtime transcription)
+- **At least one notes LLM API key** (OpenAI-compatible key, OpenRouter, Groq, Together, Fireworks, Kimi, Gemini, GLM, DeepSeek, Mistral, Perplexity, xAI, or Anthropic)
 
 ## Setup
 
@@ -49,6 +51,19 @@ OPENAI_API_KEY=sk-your-api-key-here
 TRANSCRIPTION_MODEL=gpt-4o-transcribe
 LLM_MODEL=gpt-4o
 LLM_ENDPOINT=https://api.openai.com/v1/chat/completions
+# LLM_API_KEY=optional-generic-llm-key
+# OPENROUTER_API_KEY=...
+# GROQ_API_KEY=...
+# TOGETHER_API_KEY=...
+# FIREWORKS_API_KEY=...
+# MOONSHOT_API_KEY=...   # Kimi
+# GEMINI_API_KEY=...
+# ZHIPU_API_KEY=...      # GLM
+# DEEPSEEK_API_KEY=...
+# MISTRAL_API_KEY=...
+# PERPLEXITY_API_KEY=...
+# XAI_API_KEY=...
+# ANTHROPIC_API_KEY=...
 ```
 
 ### 3. Build the audio sidecar
@@ -122,7 +137,7 @@ resources/       -- App icons, bundled sidecar exe
 | State | Zustand |
 | Audio Capture | NAudio (C# .NET 8 sidecar) |
 | Transcription | OpenAI Realtime API (WebSocket) |
-| Notes | OpenAI Chat Completions |
+| Notes | OpenAI-compatible providers + Anthropic |
 | Database | SQLite (sql.js / WASM) |
 
 ## License

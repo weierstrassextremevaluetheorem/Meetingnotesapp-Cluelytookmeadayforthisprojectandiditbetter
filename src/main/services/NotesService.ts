@@ -1,4 +1,4 @@
-import { SettingsStore, type LlmProvider } from './SettingsStore'
+import { SettingsStore, LLM_PROVIDERS, type LlmProvider } from './SettingsStore'
 import { TerminologyStore } from './TerminologyStore'
 
 export interface NotesConfig {
@@ -13,7 +13,8 @@ export interface NotesConfig {
  * Supports per-profile LLM overrides and terminology injection.
  *
  * Providers:
- *  - openai-compatible: Any endpoint speaking OpenAI Chat Completions
+ *  - openai-compatible and provider presets (OpenRouter, Groq, Together, Fireworks, Ollama,
+ *    Kimi, Gemini, GLM, DeepSeek, Mistral, Perplexity, xAI)
  *  - anthropic: Anthropic Messages API (Claude)
  */
 export class NotesService {
@@ -22,30 +23,12 @@ export class NotesService {
     notesPrompt: string,
     config?: NotesConfig
   ): Promise<string> {
-    const provider = (config?.providerOverride as LlmProvider) || SettingsStore.getLlmProvider()
-    const model = config?.modelOverride || SettingsStore.getLlmModel()
+    const provider = this.resolveProvider(config?.providerOverride)
+    const model = config?.modelOverride || SettingsStore.getLlmModel(provider)
+    const endpoint = config?.endpointOverride || SettingsStore.getLlmEndpoint(provider)
+    const apiKey = SettingsStore.getLlmApiKey(provider)
 
-    // Resolve endpoint based on the *effective* provider (after overrides),
-    // not the global one, to avoid sending Anthropic requests to OpenAI URLs.
-    let endpoint: string
-    if (config?.endpointOverride) {
-      endpoint = config.endpointOverride
-    } else {
-      // Use the effective provider to pick the correct default endpoint
-      endpoint = provider === 'anthropic'
-        ? (SettingsStore.get('llm_endpoint') || 'https://api.anthropic.com/v1/messages')
-        : (SettingsStore.get('llm_endpoint') || process.env.LLM_ENDPOINT || 'https://api.openai.com/v1/chat/completions')
-    }
-
-    // Resolve API key based on effective provider
-    let apiKey: string
-    if (provider === 'anthropic') {
-      apiKey = SettingsStore.get('anthropic_api_key') || process.env.ANTHROPIC_API_KEY || ''
-    } else {
-      apiKey = SettingsStore.getLlmApiKey()
-    }
-
-    if (!apiKey) {
+    if (!apiKey && this.requiresApiKey(provider, endpoint)) {
       throw new Error('LLM API key not set. Go to Settings to configure it.')
     }
     if (!transcript.trim()) {
@@ -61,18 +44,37 @@ export class NotesService {
 
     console.log(`[Notes] provider=${provider}  model=${model}  endpoint=${endpoint}`)
 
-    switch (provider) {
-      case 'anthropic':
-        return this.callAnthropic(apiKey, model, endpoint, enrichedPrompt, transcript)
-      case 'openai-compatible':
-      default:
-        return this.callOpenAICompatible(apiKey, model, endpoint, enrichedPrompt, transcript)
+    if (provider === 'anthropic') {
+      return this.callAnthropic(apiKey, model, endpoint, enrichedPrompt, transcript)
+    }
+    return this.callOpenAICompatible(provider, apiKey, model, endpoint, enrichedPrompt, transcript)
+  }
+
+  private resolveProvider(providerOverride?: string | null): LlmProvider {
+    if (!providerOverride) return SettingsStore.getLlmProvider()
+    const validProvider = LLM_PROVIDERS.find((p) => p.id === providerOverride)?.id
+    return validProvider || SettingsStore.getLlmProvider()
+  }
+
+  private requiresApiKey(provider: LlmProvider, endpoint: string): boolean {
+    // Ollama and other localhost OpenAI-compatible backends often run without auth.
+    if (provider === 'ollama') return false
+    return !this.isLocalEndpoint(endpoint)
+  }
+
+  private isLocalEndpoint(endpoint: string): boolean {
+    try {
+      const url = new URL(endpoint)
+      return ['localhost', '127.0.0.1', '::1'].includes(url.hostname)
+    } catch {
+      return endpoint.startsWith('http://localhost') || endpoint.startsWith('http://127.0.0.1')
     }
   }
 
   // ── OpenAI-compatible (works with dozens of providers) ─────
 
   private async callOpenAICompatible(
+    provider: LlmProvider,
     apiKey: string, model: string, endpoint: string,
     systemPrompt: string, transcript: string
   ): Promise<string> {
@@ -86,12 +88,22 @@ export class NotesService {
       max_tokens: 4096
     }
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
+    if (apiKey) {
+      headers.Authorization = `Bearer ${apiKey}`
+    }
+    if (provider === 'openrouter') {
+      const openRouterTitle = process.env.OPENROUTER_APP_NAME || process.env.OPENROUTER_TITLE
+      const openRouterReferer = process.env.OPENROUTER_SITE_URL || process.env.OPENROUTER_REFERER
+      if (openRouterTitle) headers['X-Title'] = openRouterTitle
+      if (openRouterReferer) headers['HTTP-Referer'] = openRouterReferer
+    }
+
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
+      headers,
       body: JSON.stringify(body)
     })
 

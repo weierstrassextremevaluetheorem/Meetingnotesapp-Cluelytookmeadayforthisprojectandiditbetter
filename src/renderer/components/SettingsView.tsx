@@ -9,8 +9,36 @@ const TRANSCRIPTION_PROVIDERS = [
   { id: 'deepgram', label: 'Deepgram' }
 ]
 
+type LlmProviderId =
+  | 'openai-compatible'
+  | 'openrouter'
+  | 'groq'
+  | 'together'
+  | 'fireworks'
+  | 'ollama'
+  | 'kimi'
+  | 'gemini'
+  | 'glm'
+  | 'deepseek'
+  | 'mistral'
+  | 'perplexity'
+  | 'xai'
+  | 'anthropic'
+
 const LLM_PROVIDERS = [
-  { id: 'openai-compatible', label: 'OpenAI-Compatible' },
+  { id: 'openai-compatible', label: 'OpenAI / Compatible (custom endpoint)' },
+  { id: 'openrouter', label: 'OpenRouter' },
+  { id: 'groq', label: 'Groq' },
+  { id: 'together', label: 'Together AI' },
+  { id: 'fireworks', label: 'Fireworks AI' },
+  { id: 'ollama', label: 'Ollama (local)' },
+  { id: 'kimi', label: 'Kimi (Moonshot AI)' },
+  { id: 'gemini', label: 'Google Gemini' },
+  { id: 'glm', label: 'GLM (Zhipu AI)' },
+  { id: 'deepseek', label: 'DeepSeek' },
+  { id: 'mistral', label: 'Mistral AI' },
+  { id: 'perplexity', label: 'Perplexity' },
+  { id: 'xai', label: 'xAI (Grok)' },
   { id: 'anthropic', label: 'Anthropic Claude' }
 ]
 
@@ -22,9 +50,93 @@ const DEEPGRAM_MODELS = ['nova-3', 'nova-2', 'nova', 'enhanced', 'base']
 const OPENAI_LLM_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano']
 const ANTHROPIC_MODELS = ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022']
 
-const DEFAULT_ENDPOINTS: Record<string, string> = {
+const LLM_MODEL_SUGGESTIONS: Record<LlmProviderId, string[]> = {
+  'openai-compatible': OPENAI_LLM_MODELS,
+  openrouter: ['openrouter/auto', 'openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'meta-llama/llama-3.3-70b-instruct'],
+  groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
+  together: ['meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo', 'Qwen/Qwen2.5-72B-Instruct-Turbo', 'deepseek-ai/DeepSeek-V3'],
+  fireworks: ['accounts/fireworks/models/llama-v3p1-70b-instruct', 'accounts/fireworks/models/qwen2p5-72b-instruct', 'accounts/fireworks/models/mixtral-8x22b-instruct'],
+  ollama: ['llama3.1', 'llama3.2', 'qwen2.5', 'mistral'],
+  kimi: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+  gemini: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro'],
+  glm: ['glm-4-plus', 'glm-4-air', 'glm-4-flash'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  mistral: ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest'],
+  perplexity: ['sonar-pro', 'sonar', 'sonar-reasoning-pro'],
+  xai: ['grok-2-latest', 'grok-2-vision-latest', 'grok-beta'],
+  anthropic: ANTHROPIC_MODELS
+}
+
+const DEFAULT_ENDPOINTS: Record<LlmProviderId, string> = {
   'openai-compatible': 'https://api.openai.com/v1/chat/completions',
+  openrouter: 'https://openrouter.ai/api/v1/chat/completions',
+  groq: 'https://api.groq.com/openai/v1/chat/completions',
+  together: 'https://api.together.xyz/v1/chat/completions',
+  fireworks: 'https://api.fireworks.ai/inference/v1/chat/completions',
+  ollama: 'http://localhost:11434/v1/chat/completions',
+  kimi: 'https://api.moonshot.cn/v1/chat/completions',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  glm: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+  deepseek: 'https://api.deepseek.com/chat/completions',
+  mistral: 'https://api.mistral.ai/v1/chat/completions',
+  perplexity: 'https://api.perplexity.ai/chat/completions',
+  xai: 'https://api.x.ai/v1/chat/completions',
   anthropic: 'https://api.anthropic.com/v1/messages'
+}
+
+const LLM_PROVIDER_HELP: Record<LlmProviderId, string> = {
+  'openai-compatible': 'Use OpenAI directly, Azure OpenAI, or any provider that supports OpenAI chat completions.',
+  openrouter: 'Preset endpoint for OpenRouter. Optional headers can be set via OPENROUTER_SITE_URL and OPENROUTER_APP_NAME.',
+  groq: 'Preset endpoint for Groq OpenAI-compatible chat completions.',
+  together: 'Preset endpoint for Together AI chat completions.',
+  fireworks: 'Preset endpoint for Fireworks AI chat completions.',
+  ollama: 'Local Ollama endpoint. API key is optional for local deployments.',
+  kimi: 'Kimi (Moonshot AI) OpenAI-compatible endpoint.',
+  gemini: 'Gemini via Google OpenAI-compatible endpoint. Usually uses GEMINI_API_KEY.',
+  glm: 'GLM (Zhipu AI) OpenAI-compatible endpoint.',
+  deepseek: 'DeepSeek endpoint supporting OpenAI-compatible chat completions.',
+  mistral: 'Mistral AI endpoint supporting OpenAI-compatible chat completions.',
+  perplexity: 'Perplexity endpoint supporting OpenAI-compatible chat completions.',
+  xai: 'xAI Grok endpoint supporting OpenAI-compatible chat completions.',
+  anthropic: 'Uses Anthropic Messages API (x-api-key + anthropic-version headers).'
+}
+
+const LLM_KEY_LABELS: Record<LlmProviderId, string> = {
+  'openai-compatible': 'LLM API Key (optional if reusing OpenAI key)',
+  openrouter: 'LLM API Key',
+  groq: 'LLM API Key',
+  together: 'LLM API Key',
+  fireworks: 'LLM API Key',
+  ollama: 'LLM API Key (optional for local Ollama)',
+  kimi: 'LLM API Key',
+  gemini: 'LLM API Key',
+  glm: 'LLM API Key',
+  deepseek: 'LLM API Key',
+  mistral: 'LLM API Key',
+  perplexity: 'LLM API Key',
+  xai: 'LLM API Key',
+  anthropic: 'Anthropic API Key'
+}
+
+const LLM_KEY_PLACEHOLDERS: Record<LlmProviderId, string> = {
+  'openai-compatible': 'Leave blank to reuse OpenAI key',
+  openrouter: 'Paste API key...',
+  groq: 'Paste API key...',
+  together: 'Paste API key...',
+  fireworks: 'Paste API key...',
+  ollama: 'Optional for local Ollama setups',
+  kimi: 'Paste API key...',
+  gemini: 'Paste API key...',
+  glm: 'Paste API key...',
+  deepseek: 'Paste API key...',
+  mistral: 'Paste API key...',
+  perplexity: 'Paste API key...',
+  xai: 'Paste API key...',
+  anthropic: 'Paste API key...'
+}
+
+function isLlmProvider(value: string | undefined): value is LlmProviderId {
+  return Boolean(value) && value in DEFAULT_ENDPOINTS
 }
 
 // ── Component ───────────────────────────────────────────────
@@ -75,11 +187,13 @@ export function SettingsView() {
     if (!window.api) return
     const s = await window.api.getSettings()
 
+    const savedLlmProvider = isLlmProvider(s.llm_provider) ? s.llm_provider : 'openai-compatible'
+
     setTranscriptionProvider(s.transcription_provider || 'openai-realtime')
-    setLlmProvider(s.llm_provider || 'openai-compatible')
+    setLlmProvider(savedLlmProvider)
     setTranscriptionModel(s.transcription_model || 'gpt-4o-transcribe')
-    setLlmModel(s.llm_model || 'gpt-4o')
-    setLlmEndpoint(s.llm_endpoint || DEFAULT_ENDPOINTS[s.llm_provider || 'openai-compatible'])
+    setLlmModel(s.llm_model || LLM_MODEL_SUGGESTIONS[savedLlmProvider][0])
+    setLlmEndpoint(s.llm_endpoint || DEFAULT_ENDPOINTS[savedLlmProvider])
     setRetentionDays(s.retention_days || '')
     setNotionDbId(s.notion_database_id || '')
 
@@ -98,15 +212,17 @@ export function SettingsView() {
 
   useEffect(() => { loadSettings() }, [loadSettings])
 
-  // When LLM provider changes, update endpoint + model defaults
-  useEffect(() => {
-    setLlmEndpoint(DEFAULT_ENDPOINTS[llmProvider] || DEFAULT_ENDPOINTS['openai-compatible'])
-    setLlmModel(llmProvider === 'anthropic' ? ANTHROPIC_MODELS[0] : OPENAI_LLM_MODELS[0])
-  }, [llmProvider])
+  const handleLlmProviderChange = (provider: string) => {
+    const nextProvider = isLlmProvider(provider) ? provider : 'openai-compatible'
+    setLlmProvider(nextProvider)
+    setLlmEndpoint(DEFAULT_ENDPOINTS[nextProvider])
+    setLlmModel(LLM_MODEL_SUGGESTIONS[nextProvider][0] || '')
+  }
 
-  useEffect(() => {
-    setTranscriptionModel(transcriptionProvider === 'deepgram' ? 'nova-3' : 'gpt-4o-transcribe')
-  }, [transcriptionProvider])
+  const handleTranscriptionProviderChange = (provider: string) => {
+    setTranscriptionProvider(provider)
+    setTranscriptionModel(provider === 'deepgram' ? DEEPGRAM_MODELS[0] : OPENAI_TRANSCRIPTION_MODELS[0])
+  }
 
   // ── Save ────────────────────────────────────────────────────
 
@@ -155,15 +271,19 @@ export function SettingsView() {
 
   // ── Helpers ─────────────────────────────────────────────────
 
-  const showOpenAiKey = transcriptionProvider === 'openai-realtime' || llmProvider === 'openai-compatible'
+  const effectiveLlmProvider = isLlmProvider(llmProvider) ? llmProvider : 'openai-compatible'
+
+  const showOpenAiKey = transcriptionProvider === 'openai-realtime' || effectiveLlmProvider === 'openai-compatible'
   const showDeepgramKey = transcriptionProvider === 'deepgram'
-  const showAnthropicKey = llmProvider === 'anthropic'
-  const showLlmKey = llmProvider === 'openai-compatible'
+  const showAnthropicKey = effectiveLlmProvider === 'anthropic'
+  const showLlmKey = effectiveLlmProvider !== 'anthropic'
 
   const transcriptionModels =
     transcriptionProvider === 'deepgram' ? DEEPGRAM_MODELS : OPENAI_TRANSCRIPTION_MODELS
-  const llmModels =
-    llmProvider === 'anthropic' ? ANTHROPIC_MODELS : OPENAI_LLM_MODELS
+  const llmModels = LLM_MODEL_SUGGESTIONS[effectiveLlmProvider] || OPENAI_LLM_MODELS
+
+  const llmKeyLabel = LLM_KEY_LABELS[effectiveLlmProvider]
+  const llmKeyPlaceholder = LLM_KEY_PLACEHOLDERS[effectiveLlmProvider]
 
   return (
     <div className="flex flex-col h-full">
@@ -178,7 +298,7 @@ export function SettingsView() {
         {/* ── TRANSCRIPTION PROVIDER ────────────────────────── */}
         <Section title="Transcription">
           <Label>Provider</Label>
-          <Select value={transcriptionProvider} onChange={setTranscriptionProvider} options={TRANSCRIPTION_PROVIDERS} aria-label="Transcription provider" />
+          <Select value={transcriptionProvider} onChange={handleTranscriptionProviderChange} options={TRANSCRIPTION_PROVIDERS} aria-label="Transcription provider" />
 
           <Label>Model</Label>
           <Select value={transcriptionModel} onChange={setTranscriptionModel}
@@ -195,7 +315,7 @@ export function SettingsView() {
         {/* ── LLM / NOTES PROVIDER ─────────────────────────── */}
         <Section title="Notes Generation (LLM)">
           <Label>Provider</Label>
-          <Select value={llmProvider} onChange={setLlmProvider} options={LLM_PROVIDERS} aria-label="LLM provider" />
+          <Select value={effectiveLlmProvider} onChange={handleLlmProviderChange} options={LLM_PROVIDERS} aria-label="LLM provider" />
 
           <Label>Model</Label>
           <ModelInput value={llmModel} onChange={setLlmModel} suggestions={llmModels} />
@@ -208,16 +328,12 @@ export function SettingsView() {
           )}
 
           {showLlmKey && (
-            <KeyField label="LLM API Key (if different from OpenAI key)" masked={llmKeyMasked} value={llmKey} onChange={setLlmKey} placeholder="Leave blank to reuse OpenAI key" />
+            <KeyField label={llmKeyLabel} masked={llmKeyMasked} value={llmKey} onChange={setLlmKey} placeholder={llmKeyPlaceholder} />
           )}
 
-          {llmProvider === 'openai-compatible' && (
-            <p className="text-[10px] text-white/20 leading-relaxed mt-1">
-              Works with OpenAI, Azure OpenAI, Groq, Together AI, Fireworks,
-              Ollama (http://localhost:11434/v1/chat/completions), LM Studio, vLLM, and any
-              provider that supports the OpenAI chat completions format.
-            </p>
-          )}
+          <p className="text-[10px] text-white/20 leading-relaxed mt-1">
+            {LLM_PROVIDER_HELP[effectiveLlmProvider]}
+          </p>
         </Section>
 
         {/* ── INTEGRATIONS ─────────────────────────────────── */}
